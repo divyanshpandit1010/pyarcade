@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PyArcade — Python Games by Divyansh</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;600;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #0a0c10;
+    --surface:  #111520;
+    --border:   #1e2540;
+    --accent:   #00ffaa;
+    --accent2:  #7b5ea7;
+    --text:     #cdd6f4;
+    --muted:    #6c7086;
+    --danger:   #f38ba8;
+    --warn:     #f9e2af;
+    --font-head: 'Exo 2', sans-serif;
+    --font-mono: 'Share Tech Mono', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-mono); min-height: 100vh; overflow-x: hidden; }
+
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; background: rgba(10,12,16,0.92); backdrop-filter: blur(8px); }
+  .logo { font-family: var(--font-head); font-weight: 800; font-size: 1.4rem; color: var(--accent); letter-spacing: 2px; }
+  .logo span { color: var(--text); }
+  .nav-score { font-size: 0.8rem; color: var(--muted); }
+  .nav-score b { color: var(--accent); }
+
+  .hero { text-align: center; padding: 4rem 1rem 2rem; position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(0,255,170,0.07) 0%, transparent 70%); pointer-events: none; }
+  .hero h1 { font-family: var(--font-head); font-weight: 800; font-size: clamp(2rem, 6vw, 4.5rem); line-height: 1.1; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { margin-top: 0.75rem; color: var(--muted); font-size: 0.95rem; }
+  .scanline { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,170,0.015) 2px, rgba(0,255,170,0.015) 4px); pointer-events: none; }
+
+  .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.25rem; max-width: 1200px; margin: 2rem auto; padding: 0 1.5rem; }
+  .game-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer; transition: border-color .2s, transform .2s, box-shadow .2s; }
+  .game-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,255,170,0.12); }
+  .card-header { padding: 1.25rem; display: flex; align-items: center; gap: 1rem; }
+  .card-icon { font-size: 2.2rem; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); flex-shrink: 0; }
+  .card-meta h3 { font-family: var(--font-head); font-weight: 600; font-size: 1.05rem; color: #fff; }
+  .card-meta p { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .card-tag { display: inline-block; font-size: 0.65rem; padding: 2px 7px; border-radius: 3px; background: rgba(0,255,170,0.1); color: var(--accent); border: 1px solid rgba(0,255,170,0.3); margin-top: 4px; }
+  .play-btn { display: block; width: calc(100% - 2.5rem); margin: 0 1.25rem 1.25rem; padding: 0.6rem; background: transparent; border: 1px solid var(--accent); color: var(--accent); font-family: var(--font-mono); font-size: 0.85rem; border-radius: 5px; cursor: pointer; letter-spacing: 1px; transition: background .15s, color .15s; }
+  .play-btn:hover { background: var(--accent); color: var(--bg); }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column; }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+  .modal-head h2 { font-family: var(--font-head); font-weight: 600; font-size: 1.1rem; color: #fff; }
+  .close-btn { background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; line-height: 1; transition: color .15s; }
+  .close-btn:hover { color: var(--danger); }
+  .modal-body { padding: 1.25rem; flex: 1; }
+
+  canvas { display: block; border: 1px solid var(--border); border-radius: 6px; background: #000; margin: 0 auto; image-rendering: pixelated; }
+  .game-controls { margin-top: 0.75rem; font-size: 0.75rem; color: var(--muted); text-align: center; line-height: 1.8; }
+  .game-controls kbd { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; color: var(--text); }
+  .game-score-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+  .game-score-bar span { font-size: 0.8rem; color: var(--accent); }
+  .game-btn { padding: 0.4rem 1rem; background: transparent; border: 1px solid var(--accent); color: var(--accent); font-family: var(--font-mono); font-size: 0.78rem; border-radius: 4px; cursor: pointer; letter-spacing: 1px; transition: background .15s, color .15s; }
+  .game-btn:hover { background: var(--accent); color: var(--bg); }
+
+  .quiz-q { font-size: 1rem; color: #fff; line-height: 1.5; margin-bottom: 1rem; font-family: var(--font-head); font-weight: 600; }
+  .quiz-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .quiz-opt { padding: 0.65rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 0.8rem; border-radius: 5px; cursor: pointer; transition: border-color .15s, background .15s; text-align: left; }
+  .quiz-opt:hover:not(:disabled) { border-color: var(--accent); }
+  .quiz-opt.correct { border-color: var(--accent); background: rgba(0,255,170,0.1); color: var(--accent); }
+  .quiz-opt.wrong   { border-color: var(--danger); background: rgba(243,139,168,0.1); color: var(--danger); }
+  .quiz-progress { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem; }
+  .quiz-bar { height: 3px; background: var(--border); border-radius: 2px; margin-bottom: 1rem; }
+  .quiz-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width .3s; }
+  .result-box { text-align: center; padding: 1.5rem; }
+  .result-box .big { font-size: 3rem; }
+  .result-box h3 { font-family: var(--font-head); font-size: 1.3rem; color: #fff; margin: 0.5rem 0; }
+  .result-box p { color: var(--muted); font-size: 0.85rem; }
+  .btn-row { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
+
+  /* MINESWEEPER */
+  .ms-grid { display: grid; gap: 2px; background: var(--border); padding: 4px; border-radius: 6px; margin: 0 auto; width: fit-content; }
+  .ms-cell { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-weight: 700; font-size: 0.85rem; background: #1a1d2e; border-radius: 3px; cursor: pointer; user-select: none; transition: background .1s; }
+  .ms-cell.hidden:hover { background: #262a40; }
+  .ms-cell.revealed { background: #0d0f16; cursor: default; }
+  .ms-cell.mine { background: var(--danger); }
+  .ms-cell.flag { background: #2a2440; }
+  .ms-n1{color:#7ec8ff}.ms-n2{color:#00ffaa}.ms-n3{color:#f38ba8}.ms-n4{color:#7b5ea7}.ms-n5{color:#f9e2af}.ms-n6{color:#5ec8c8}.ms-n7{color:#fff}.ms-n8{color:#888}
+
+  /* MEMORY */
+  .mem-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 320px; margin: 0 auto; }
+  .mem-card { aspect-ratio: 1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; cursor: pointer; background: #1a1d2e; border: 1px solid var(--border); transition: transform .25s, background .2s; }
+  .mem-card.flipped { background: #262a40; border-color: var(--accent); }
+  .mem-card.matched { background: rgba(0,255,170,0.12); border-color: var(--accent); cursor: default; opacity: 0.7; }
+
+  footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.75rem; border-top: 1px solid var(--border); margin-top: 3rem; }
+  footer b { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Py<span>Arcade</span></div>
+  <div class="nav-score">Session Score: <b id="totalScore">0</b> pts</div>
+</nav>
+
+<div class="hero">
+  <div class="scanline"></div>
+  <h1>Python Games<br/><em>in your browser</em></h1>
+  <p>6 classic games — built with pure Python logic, running live</p>
+</div>
+
+<div class="game-grid">
+
+  <div class="game-card" onclick="openGame('snake')">
+    <div class="card-header">
+      <div class="card-icon">🐍</div>
+      <div class="card-meta">
+        <h3>Snake</h3>
+        <p>Eat. Grow. Don't crash.</p>
+        <span class="card-tag">CANVAS</span>
+      </div>
+    </div>
+    <button class="play-btn">▶ PLAY</button>
+  </div>
+
+  <div class="game-card" onclick="openGame('tictactoe')">
+    <div class="card-header">
+      <div class="card-icon">⭕</div>
+      <div class="card-meta">
+        <h3>Tic Tac Toe</h3>
+        <p>vs AI with minimax</p>
+        <span class="card-tag">AI</span>
+      </div>
+    </div>
+    <button class="play-btn">▶ PLAY</button>
+  </div>
+
+  <div class="game-card" onclick="openGame('quiz')">
+    <div class="card-header">
+      <div class="card-icon">🧠</div>
+      <div class="card-meta">
+        <h3>Python Quiz</h3>
+        <p>Test your Python knowledge</p>
+        <span class="card-tag">TRIVIA</span>
+      </div>
+    </div>
+    <button class="play-btn">▶ PLAY</button>
+  </div>
+
+  <div class="game-card" onclick="openGame('minesweeper')">
+    <div class="card-header">
+      <div class="card-icon">💣</div>
+      <div class="card-meta">
+        <h3>Minesweeper</h3>
+        <p>Clear the board, avoid mines</p>
+        <span class="card-tag">LOGIC</span>
+      </div>
+    </div>
+    <button class="play-btn">▶ PLAY</button>
+  </div>
+
+  <div class="game-card" onclick="openGame('memory')">
+    <div class="card-header">
+      <div class="card-icon">🃏</div>
+      <div class="card-meta">
+        <h3>Memory Flip</h3>
+        <p>Match the pairs, fewest moves</p>
+        <span class="card-tag">MEMORY</span>
+      </div>
+    </div>
+    <button class="play-btn">▶ PLAY</button>
+  </div>
+
+  <div class="game-card" onclick="openGame('pong')">
+    <div class="card-header">
+      <div class="card-icon">🏓</div>
+      <div class="card-meta">
+        <h3>Pong</h3>
+        <p>First to 5 vs the CPU</p>
+        <span class="card-tag">CANVAS</span>
+      </div>
+    </div>
+    <button class="play-btn">▶ PLAY</button>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="closeIfOutside(event)">
+  <div class="modal" id="modal">
+    <div class="modal-head">
+      <h2 id="modalTitle">Game</h2>
+      <button class="close-btn" onclick="closeGame()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<footer>PyArcade — <b>6 games</b>, zero dependencies, pure logic · Built with Python algorithms in JS</footer>
+
+<script>
+// ── GLOBAL ────────────────────────────────────────────────────
+let totalScore = 0;
+function addScore(n){ totalScore += n; document.getElementById('totalScore').textContent = totalScore; }
+
+function openGame(id){
+  document.getElementById('modalOverlay').classList.add('open');
+  GAMES[id]();
+}
+function closeGame(){
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.getElementById('modalBody').innerHTML = '';
+  stopSnake();
+  stopPong();
+}
+function closeIfOutside(e){ if(e.target===document.getElementById('modalOverlay')) closeGame(); }
+
+// ══════════════════════════════════════════════════════════════
+// 1. SNAKE
+// ══════════════════════════════════════════════════════════════
+let snakeInterval = null;
+let snakeKey = null;
+function stopSnake(){
+  clearInterval(snakeInterval);
+  if(snakeKey){ document.removeEventListener('keydown', snakeKey); snakeKey = null; }
+}
+
+function initSnake(){
+  document.getElementById('modalTitle').textContent = '🐍 Snake';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="game-score-bar">
+      <span>Score: <b id="snScore">0</b></span>
+      <button class="game-btn" onclick="startSnakeGame()">Restart</button>
+    </div>
+    <canvas id="snCanvas" width="400" height="400"></canvas>
+    <div class="game-controls"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> to move</div>`;
+  startSnakeGame();
+}
+
+function startSnakeGame(){
+  stopSnake();
+  const C = document.getElementById('snCanvas');
+  const ctx = C.getContext('2d');
+  const SZ = 20, COLS = 20, ROWS = 20;
+  let snake = [{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+  let dir = {x:1,y:0}, nextDir = {x:1,y:0};
+  let score = 0, dead = false;
+
+  function randFood(){
+    let f;
+    do { f = {x:Math.floor(Math.random()*COLS), y:Math.floor(Math.random()*ROWS)}; }
+    while(snake.some(s=>s.x===f.x&&s.y===f.y));
+    return f;
+  }
+  let food = randFood();
+
+  function draw(){
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,400,400);
+    ctx.strokeStyle='#111'; ctx.lineWidth=0.5;
+    for(let i=0;i<COLS;i++){ctx.beginPath();ctx.moveTo(i*SZ,0);ctx.lineTo(i*SZ,400);ctx.stroke();}
+    for(let j=0;j<ROWS;j++){ctx.beginPath();ctx.moveTo(0,j*SZ);ctx.lineTo(400,j*SZ);ctx.stroke();}
+    ctx.fillStyle='#f38ba8';
+    ctx.beginPath(); ctx.arc(food.x*SZ+SZ/2,food.y*SZ+SZ/2,SZ/2-2,0,Math.PI*2); ctx.fill();
+    snake.forEach((s,i)=>{
+      ctx.fillStyle = i===0 ? '#00ffaa' : `hsl(160,100%,${40+i}%)`;
+      ctx.fillRect(s.x*SZ+1,s.y*SZ+1,SZ-2,SZ-2);
+    });
+    if(dead){
+      ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,400,400);
+      ctx.fillStyle='#f38ba8'; ctx.font='bold 28px Exo 2, sans-serif'; ctx.textAlign='center';
+      ctx.fillText('GAME OVER',200,180);
+      ctx.fillStyle='#cdd6f4'; ctx.font='16px Share Tech Mono, monospace';
+      ctx.fillText('Score: '+score,200,215);
+      ctx.fillStyle='#00ffaa'; ctx.font='13px Share Tech Mono, monospace';
+      ctx.fillText('Press Restart to play again',200,245);
+    }
+  }
+
+  function step(){
+    dir = {...nextDir};
+    const head = {x:snake[0].x+dir.x, y:snake[0].y+dir.y};
+    if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS||snake.some(s=>s.x===head.x&&s.y===head.y)){
+      dead=true; addScore(score); draw(); stopSnake(); return;
+    }
+    snake.unshift(head);
+    if(head.x===food.x&&head.y===food.y){ score++; document.getElementById('snScore').textContent=score; food=randFood(); }
+    else snake.pop();
+    draw();
+  }
+
+  snakeKey = function(e){
+    const map = {ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0}};
+    if(map[e.key]){
+      const nd = map[e.key];
+      if(nd.x!==-dir.x||nd.y!==-dir.y) nextDir=nd;
+      e.preventDefault();
+    }
+  };
+  document.addEventListener('keydown', snakeKey);
+  draw();
+  snakeInterval = setInterval(step, 130);
+}
+
+// ══════════════════════════════════════════════════════════════
+// 2. TIC TAC TOE (Minimax AI)
+// ══════════════════════════════════════════════════════════════
+function initTicTacToe(){
+  document.getElementById('modalTitle').textContent = '⭕ Tic Tac Toe';
+  let board = Array(9).fill(null), xTurn = true, gameOver = false;
+
+  function render(){
+    document.getElementById('modalBody').innerHTML = `
+      <div class="game-score-bar"><span id="tttStatus">Your turn (X)</span><button class="game-btn" onclick="initTicTacToe()">Restart</button></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:280px;margin:0 auto">
+        ${board.map((v,i)=>`<div onclick="tttClick(${i})" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#1a1d2e;border:2px solid ${v?'#2a2d3e':'#1e2540'};border-radius:8px;font-size:2.2rem;font-weight:800;font-family:Exo 2;color:${v==='X'?'#00ffaa':'#f38ba8'};cursor:${v||gameOver?'default':'pointer'}">${v||''}</div>`).join('')}
+      </div>
+      <div class="game-controls" style="margin-top:1rem">You are <b style="color:#00ffaa">X</b> · AI is <b style="color:#f38ba8">O</b> · AI uses minimax strategy</div>`;
+  }
+
+  function checkWin(b,p){ return [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(l=>l.every(i=>b[i]===p)); }
+
+  function minimax(b,isMax){
+    if(checkWin(b,'O')) return 10;
+    if(checkWin(b,'X')) return -10;
+    if(b.every(v=>v)) return 0;
+    let scores = b.map((v,i)=>{ if(v) return isMax?-Infinity:Infinity; let nb=[...b]; nb[i]=isMax?'O':'X'; return minimax(nb,!isMax); });
+    return isMax ? Math.max(...scores) : Math.min(...scores);
+  }
+
+  function aiMove(){
+    let best=-Infinity, idx=0;
+    board.forEach((v,i)=>{ if(!v){ let nb=[...board]; nb[i]='O'; let s=minimax(nb,false); if(s>best){best=s;idx=i;} } });
+    board[idx]='O'; xTurn=true;
+    if(checkWin(board,'O')){ gameOver=true; render(); document.getElementById('tttStatus').textContent='AI wins! 🤖'; return; }
+    if(board.every(v=>v)){ gameOver=true; render(); document.getElementById('tttStatus').textContent="It's a draw!"; return; }
+    render();
+  }
+
+  window.tttClick = function(i){
+    if(board[i]||gameOver||!xTurn) return;
+    board[i]='X'; xTurn=false;
+    if(checkWin(board,'X')){ gameOver=true; addScore(50); render(); document.getElementById('tttStatus').textContent='You win! 🎉 (+50 pts)'; return; }
+    if(board.every(v=>v)){ gameOver=true; render(); document.getElementById('tttStatus').textContent="It's a draw!"; return; }
+    render(); document.getElementById('tttStatus').textContent='AI thinking...';
+    setTimeout(aiMove, 300);
+  };
+  render();
+}
+
+// ══════════════════════════════════════════════════════════════
+// 3. PYTHON QUIZ
+// ══════════════════════════════════════════════════════════════
+function initQuiz(){
+  document.getElementById('modalTitle').textContent = '🧠 Python Quiz';
+  const QS = [
+    {q:"What does `len([1,2,3])` return?",opts:["2","3","4","Error"],ans:1},
+    {q:"Which keyword is used to define a function in Python?",opts:["func","def","function","define"],ans:1},
+    {q:"What is the output of `type(3.14)`?",opts:["<class 'int'>","<class 'float'>","<class 'double'>","<class 'num'>"],ans:1},
+    {q:"Which of these is a mutable data type?",opts:["tuple","string","list","int"],ans:2},
+    {q:"What does `//` do in Python?",opts:["Comment","Floor division","True division","Bitwise XOR"],ans:1},
+    {q:"Which method adds an element to the end of a list?",opts:["add()","insert()","append()","push()"],ans:2},
+    {q:"What is `2 ** 10` in Python?",opts:["20","100","1024","512"],ans:2},
+    {q:"What keyword exits a loop early?",opts:["exit","stop","break","end"],ans:2},
+    {q:"Which library is used for data analysis?",opts:["NumPy","pandas","Matplotlib","All of these"],ans:3},
+    {q:"What is a lambda in Python?",opts:["A class","An anonymous function","A loop","A module"],ans:1},
+  ];
+  let idx=0, score=0, answered=false;
+
+  function render(){
+    if(idx>=QS.length){ showResult(); return; }
+    const q = QS[idx];
+    document.getElementById('modalBody').innerHTML = `
+      <div class="quiz-progress">Question ${idx+1} of ${QS.length} · Score: ${score}</div>
+      <div class="quiz-bar"><div class="quiz-bar-fill" style="width:${(idx/QS.length)*100}%"></div></div>
+      <div class="quiz-q">${q.q}</div>
+      <div class="quiz-opts">
+        ${q.opts.map((o,i)=>`<button class="quiz-opt" onclick="quizAns(${i})">${o}</button>`).join('')}
+      </div>
+      <div id="qFeedback" style="margin-top:0.75rem;min-height:1.5rem;font-size:0.8rem;text-align:center"></div>`;
+  }
+
+  window.quizAns = function(i){
+    if(answered) return;
+    answered = true;
+    const q = QS[idx];
+    const opts = document.querySelectorAll('.quiz-opt');
+    opts.forEach((el,j)=>{ el.disabled=true; if(j===q.ans) el.classList.add('correct'); else if(j===i&&i!==q.ans) el.classList.add('wrong'); });
+    const fb = document.getElementById('qFeedback');
+    if(i===q.ans){ score++; fb.innerHTML='<span style="color:#00ffaa">✓ Correct!</span>'; }
+    else { fb.innerHTML=`<span style="color:#f38ba8">✗ Wrong! Answer: ${q.opts[q.ans]}</span>`; }
+    setTimeout(()=>{ idx++; answered=false; render(); }, 1200);
+  };
+
+  function showResult(){
+    const pct = Math.round(score/QS.length*100);
+    const emoji = pct>=80?'🏆':pct>=50?'🎯':'📚';
+    addScore(score*10);
+    document.getElementById('modalBody').innerHTML = `
+      <div class="result-box">
+        <div class="big">${emoji}</div>
+        <h3>${score}/${QS.length} Correct</h3>
+        <p>${pct}% accuracy · +${score*10} pts added</p>
+        <div class="btn-row"><button class="game-btn" onclick="initQuiz()">Play Again</button></div>
+      </div>`;
+  }
+  render();
+}
+
+// ══════════════════════════════════════════════════════════════
+// 4. MINESWEEPER
+// ══════════════════════════════════════════════════════════════
+function initMinesweeper(){
+  document.getElementById('modalTitle').textContent = '💣 Minesweeper';
+  const COLS = 9, ROWS = 9, MINES = 10;
+  let grid = [], revealedCount = 0, flagCount = 0, gameOver = false, won = false, firstClick = true;
+
+  function buildGrid(safeIdx){
+    grid = Array(ROWS).fill(null).map(()=>Array(COLS).fill(null).map(()=>({mine:false,revealed:false,flagged:false,adj:0})));
+    let placed = 0;
+    while(placed < MINES){
+      const r = Math.floor(Math.random()*ROWS), c = Math.floor(Math.random()*COLS);
+      const idx = r*COLS+c;
+      if(grid[r][c].mine || idx===safeIdx) continue;
+      grid[r][c].mine = true; placed++;
+    }
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      if(grid[r][c].mine) continue;
+      let n=0;
+      for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc].mine) n++;
+      }
+      grid[r][c].adj = n;
+    }
+  }
+
+  function floodReveal(r,c){
+    if(r<0||r>=ROWS||c<0||c>=COLS) return;
+    const cell = grid[r][c];
+    if(cell.revealed||cell.flagged) return;
+    cell.revealed = true; revealedCount++;
+    if(cell.adj===0 && !cell.mine){
+      for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++) if(dr||dc) floodReveal(r+dr,c+dc);
+    }
+  }
+
+  function render(){
+    let cellsHTML = '';
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      const cell = grid[r][c];
+      let cls = 'ms-cell ' + (cell.revealed ? 'revealed' : 'hidden');
+      let content = '';
+      if(cell.flagged && !cell.revealed){ cls += ' flag'; content='🚩'; }
+      else if(cell.revealed){
+        if(cell.mine){ cls += ' mine'; content='💣'; }
+        else if(cell.adj>0){ content = `<span class="ms-n${cell.adj}">${cell.adj}</span>`; }
+      }
+      cellsHTML += `<div class="${cls}" oncontextmenu="msFlag(event,${r},${c})" onclick="msClick(${r},${c})">${content}</div>`;
+    }
+    let status = gameOver ? (won ? '🎉 You cleared the field! (+40 pts)' : '💥 Boom! Game over') : `🚩 ${flagCount}/${MINES} flagged`;
+    document.getElementById('modalBody').innerHTML = `
+      <div class="game-score-bar"><span style="color:${gameOver?(won?'#00ffaa':'#f38ba8'):'#cdd6f4'}">${status}</span><button class="game-btn" onclick="initMinesweeper()">Restart</button></div>
+      <div class="ms-grid" style="grid-template-columns:repeat(${COLS},28px)">${cellsHTML}</div>
+      <div class="game-controls">Left click: reveal · Right click: flag</div>`;
+  }
+
+  window.msClick = function(r,c){
+    if(gameOver) return;
+    const cell = grid[r][c];
+    if(cell.flagged) return;
+    if(firstClick){ buildGrid(r*COLS+c); firstClick=false; }
+    if(cell.mine){
+      cell.revealed = true; gameOver = true;
+      grid.forEach(row=>row.forEach(cc=>{ if(cc.mine) cc.revealed=true; }));
+      render(); return;
+    }
+    floodReveal(r,c);
+    if(revealedCount === ROWS*COLS - MINES){ gameOver=true; won=true; addScore(40); }
+    render();
+  };
+
+  window.msFlag = function(e,r,c){
+    e.preventDefault();
+    if(gameOver) return;
+    const cell = grid[r][c];
+    if(cell.revealed) return;
+    cell.flagged = !cell.flagged;
+    flagCount += cell.flagged ? 1 : -1;
+    render();
+  };
+
+  buildGrid(-1);
+  render();
+}
+
+// ══════════════════════════════════════════════════════════════
+// 5. MEMORY CARD FLIP
+// ══════════════════════════════════════════════════════════════
+function initMemory(){
+  document.getElementById('modalTitle').textContent = '🃏 Memory Flip';
+  const ICONS = ['🐍','🚀','⭐','🔥','🎮','🍕','🌙','🎲'];
+  let cards = [...ICONS, ...ICONS].sort(()=>Math.random()-0.5).map(icon=>({icon,flipped:false,matched:false}));
+  let flippedIdx = [], moves = 0, matches = 0, lock = false;
+
+  function render(){
+    document.getElementById('modalBody').innerHTML = `
+      <div class="game-score-bar"><span>Moves: <b id="memMoves">${moves}</b> · Matches: ${matches}/${ICONS.length}</span><button class="game-btn" onclick="initMemory()">Restart</button></div>
+      <div class="mem-grid">
+        ${cards.map((c,i)=>`<div class="mem-card ${c.matched?'matched':c.flipped?'flipped':''}" onclick="memFlip(${i})">${(c.flipped||c.matched)?c.icon:''}</div>`).join('')}
+      </div>
+      <div class="game-controls" style="margin-top:0.75rem">Flip two cards to find a match</div>`;
+  }
+
+  window.memFlip = function(i){
+    if(lock || cards[i].flipped || cards[i].matched) return;
+    cards[i].flipped = true;
+    flippedIdx.push(i);
+    render();
+    if(flippedIdx.length === 2){
+      moves++;
+      lock = true;
+      const [a,b] = flippedIdx;
+      if(cards[a].icon === cards[b].icon){
+        cards[a].matched = true; cards[b].matched = true;
+        matches++;
+        flippedIdx = []; lock = false;
+        if(matches === ICONS.length){
+          const bonus = Math.max(100 - moves*3, 20);
+          addScore(bonus);
+          setTimeout(()=>{
+            document.getElementById('modalBody').innerHTML = `
+              <div class="result-box">
+                <div class="big">🏆</div>
+                <h3>Solved in ${moves} moves!</h3>
+                <p>+${bonus} pts added</p>
+                <div class="btn-row"><button class="game-btn" onclick="initMemory()">Play Again</button></div>
+              </div>`;
+          }, 300);
+          return;
+        }
+        render();
+      } else {
+        setTimeout(()=>{
+          cards[a].flipped = false; cards[b].flipped = false;
+          flippedIdx = []; lock = false;
+          render();
+        }, 700);
+      }
+    }
+  };
+  render();
+}
+
+// ══════════════════════════════════════════════════════════════
+// 6. PONG
+// ══════════════════════════════════════════════════════════════
+let pongLoop = null, pongKeyDown = null, pongKeyUp = null;
+function stopPong(){
+  if(pongLoop) cancelAnimationFrame(pongLoop);
+  pongLoop = null;
+  if(pongKeyDown){ document.removeEventListener('keydown', pongKeyDown); pongKeyDown=null; }
+  if(pongKeyUp){ document.removeEventListener('keyup', pongKeyUp); pongKeyUp=null; }
+}
+
+function initPong(){
+  document.getElementById('modalTitle').textContent = '🏓 Pong';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="game-score-bar">
+      <span id="pongScore">You: 0 — CPU: 0</span>
+      <button class="game-btn" onclick="startPong()">Restart</button>
+    </div>
+    <canvas id="pongCanvas" width="480" height="320"></canvas>
+    <div class="game-controls"><kbd>↑</kbd><kbd>↓</kbd> to move your paddle · first to 5 wins</div>`;
+  startPong();
+}
+
+function startPong(){
+  stopPong();
+  const C = document.getElementById('pongCanvas');
+  const ctx = C.getContext('2d');
+  const W = 480, H = 320, PW = 10, PH = 70;
+  let playerY = H/2 - PH/2, cpuY = H/2 - PH/2;
+  let ballX = W/2, ballY = H/2, ballVX = 4, ballVY = 3;
+  let playerScore = 0, cpuScore = 0, gameOver = false;
+  const keys = {};
+
+  pongKeyDown = e => { keys[e.key]=true; if(['ArrowUp','ArrowDown'].includes(e.key)) e.preventDefault(); };
+  pongKeyUp = e => { keys[e.key]=false; };
+  document.addEventListener('keydown', pongKeyDown);
+  document.addEventListener('keyup', pongKeyUp);
+
+  function resetBall(dir){
+    ballX = W/2; ballY = H/2;
+    ballVX = 4*dir; ballVY = (Math.random()*4-2)||3;
+  }
+
+  function draw(){
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#1e2540'; ctx.setLineDash([6,8]);
+    ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='#00ffaa'; ctx.fillRect(15, playerY, PW, PH);
+    ctx.fillStyle='#f38ba8'; ctx.fillRect(W-15-PW, cpuY, PW, PH);
+    ctx.fillStyle='#cdd6f4'; ctx.beginPath(); ctx.arc(ballX, ballY, 6, 0, Math.PI*2); ctx.fill();
+    if(gameOver){
+      ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle = playerScore>cpuScore?'#00ffaa':'#f38ba8';
+      ctx.font='bold 26px Exo 2, sans-serif'; ctx.textAlign='center';
+      ctx.fillText(playerScore>cpuScore?'YOU WIN!':'CPU WINS', W/2, H/2-10);
+      ctx.fillStyle='#cdd6f4'; ctx.font='13px Share Tech Mono, monospace';
+      ctx.fillText('Press Restart to play again', W/2, H/2+20);
+    }
+  }
+
+  function step(){
+    if(!gameOver){
+      if(keys['ArrowUp']) playerY -= 6;
+      if(keys['ArrowDown']) playerY += 6;
+      playerY = Math.max(0, Math.min(H-PH, playerY));
+
+      const cpuCenter = cpuY + PH/2;
+      if(cpuCenter < ballY - 10) cpuY += 4.2;
+      else if(cpuCenter > ballY + 10) cpuY -= 4.2;
+      cpuY = Math.max(0, Math.min(H-PH, cpuY));
+
+      ballX += ballVX; ballY += ballVY;
+      if(ballY < 6 || ballY > H-6) ballVY *= -1;
+
+      if(ballX-6 < 15+PW && ballY > playerY && ballY < playerY+PH && ballVX<0){
+        ballVX *= -1.05; ballVY += (Math.random()*2-1);
+      }
+      if(ballX+6 > W-15-PW && ballY > cpuY && ballY < cpuY+PH && ballVX>0){
+        ballVX *= -1.05; ballVY += (Math.random()*2-1);
+      }
+
+      if(ballX < 0){ cpuScore++; updateScore(); resetBall(1); }
+      if(ballX > W){ playerScore++; updateScore(); resetBall(-1); }
+
+      if(playerScore>=5 || cpuScore>=5){
+        gameOver = true;
+        addScore(playerScore>cpuScore ? 60 : 10);
+      }
+    }
+    draw();
+    pongLoop = requestAnimationFrame(step);
+  }
+
+  function updateScore(){
+    document.getElementById('pongScore').textContent = `You: ${playerScore} — CPU: ${cpuScore}`;
+  }
+
+  updateScore();
+  draw();
+  pongLoop = requestAnimationFrame(step);
+}
+
+// ── GAME ROUTER ───────────────────────────────────────────────
+const GAMES = {
+  snake: initSnake,
+  tictactoe: initTicTacToe,
+  quiz: initQuiz,
+  minesweeper: initMinesweeper,
+  memory: initMemory,
+  pong: initPong,
+};
+</script>
+</body>
+</html>
