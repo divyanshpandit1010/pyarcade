@@ -14,7 +14,7 @@ Python algorithms running live in the browser.
 - 🏓 Pong
 
 ## 🚀 Tech Stack
-HTML5 · CSS3 · Vanilla JavaScript · GitHub Pages
+HTML5 · CSS3 · JavaScript · GitHub Pages
 
 ## 👨‍💻 Author
 Divyansh — B.Tech CSE-AI, Medi-Caps University
